@@ -71,14 +71,19 @@ export class AuditLogger {
   }
 
   /**
-   * Persist event to storage (placeholder)
+   * Persist event to storage
    */
   private persist(event: AuditEvent): void {
-    // TODO: Write to database or file system
-    // For now, just console for critical events
+    // Write critical and error events to stderr for immediate visibility
     if (event.level === AuditLevel.CRITICAL || event.level === AuditLevel.ERROR) {
       console.error('[AUDIT]', JSON.stringify(event));
     }
+    
+    // In a production environment, this should write to:
+    // - Database (PostgreSQL, MongoDB, etc.)
+    // - File system with rotation
+    // - External logging service (CloudWatch, Splunk, etc.)
+    // For now, events are kept in memory with rotation
   }
 
   /**
@@ -184,11 +189,31 @@ complianceChecker.registerCheck({
   name: 'core-directive-exists',
   description: 'Verify Core Directive document is accessible',
   check: async () => {
-    // TODO: Actually check file existence
-    return {
-      passed: true,
-      message: 'Core Directive document found',
-    };
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const directivePath = path.join(process.cwd(), 'CORE_DIRECTIVE.md');
+      await fs.access(directivePath);
+      
+      // Verify file has content
+      const content = await fs.readFile(directivePath, 'utf-8');
+      if (content.length < 100) {
+        return {
+          passed: false,
+          message: 'Core Directive file exists but appears incomplete',
+        };
+      }
+      
+      return {
+        passed: true,
+        message: 'Core Directive document found and validated',
+      };
+    } catch (error) {
+      return {
+        passed: false,
+        message: `Core Directive not found: ${(error as Error).message}`,
+      };
+    }
   },
 });
 
@@ -196,10 +221,41 @@ complianceChecker.registerCheck({
   name: 'security-modules-loaded',
   description: 'Verify essential security modules are loaded',
   check: async () => {
-    // TODO: Check module registry
+    // Import registry to check loaded modules
+    const { registry } = await import('../registry');
+    
+    const requiredModules = ['core-security', 'governance'];
+    const loadedModules = registry.list();
+    const loadedNames = new Set(loadedModules.map(m => m.name));
+    
+    const missing = requiredModules.filter(name => !loadedNames.has(name));
+    
+    if (missing.length > 0) {
+      return {
+        passed: false,
+        message: 'Required security modules not loaded',
+        violations: missing,
+      };
+    }
+    
+    // Check that modules are in running or initialized state
+    const notReady = loadedModules.filter(m => 
+      requiredModules.includes(m.name) && 
+      m.state !== 'running' && 
+      m.state !== 'initialized'
+    );
+    
+    if (notReady.length > 0) {
+      return {
+        passed: false,
+        message: 'Security modules exist but are not operational',
+        violations: notReady.map(m => `${m.name} is ${m.state}`),
+      };
+    }
+    
     return {
       passed: true,
-      message: 'Security modules loaded',
+      message: `All ${requiredModules.length} required security modules loaded and operational`,
     };
   },
 });
