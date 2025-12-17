@@ -101,7 +101,8 @@ export class AuditLogger {
     }
 
     if (filter.since) {
-      results = results.filter((e) => e.timestamp >= filter.since);
+      const sinceDate = filter.since;
+      results = results.filter((e) => e.timestamp >= sinceDate);
     }
 
     if (filter.limit) {

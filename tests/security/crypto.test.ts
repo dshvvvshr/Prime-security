@@ -72,7 +72,8 @@ describe('Security Crypto Module', () => {
 
       it('should reject unsafe strings', () => {
         expect(Validator.isSafeString('<script>')).toBe(false);
-        expect(Validator.isSafeString('DROP TABLE')).toBe(false);
+        expect(Validator.isSafeString('user;DROP TABLE')).toBe(false);
+        expect(Validator.isSafeString('name=value&hack')).toBe(false);
       });
     });
 

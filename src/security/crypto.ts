@@ -34,7 +34,7 @@ export function hash(data: string | Buffer, options: HashOptions = {}): string {
   const hasher = crypto.createHash(algorithm);
   hasher.update(data);
   
-  return hasher.digest(encoding as BufferEncoding);
+  return hasher.digest(encoding);
 }
 
 /**
@@ -81,7 +81,7 @@ export function decrypt(
   authTag: Buffer,
   algorithm: string = 'aes-256-gcm'
 ): Buffer {
-  const decipher = crypto.createDecipheriv(algorithm, key, iv);
+  const decipher = crypto.createDecipheriv(algorithm, key, iv) as crypto.DecipherGCM;
   decipher.setAuthTag(authTag);
   
   let decrypted = decipher.update(encrypted);
