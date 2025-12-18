@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { braveSearchApi } from '../brave-api.js';
 
+const MAX_IMAGE_RESULTS = 150;
+
 export const imageSearchSchema = z.object({
   q: z.string().describe('The search query for images'),
-  count: z.number().min(1).max(150).optional().describe('Number of results (1-150)'),
+  count: z.number().min(1).max(MAX_IMAGE_RESULTS).optional().describe('Number of results (1-150)'),
   safesearch: z.enum(['off', 'moderate', 'strict']).optional().describe('Safe search level'),
   spellcheck: z.boolean().optional().describe('Enable spell checking'),
 });
@@ -20,7 +22,9 @@ export async function imageSearch(args: z.infer<typeof imageSearchSchema>, apiKe
       output += `**Thumbnail:** ${result.thumbnail?.src || 'N/A'}\n`;
       output += `**Source:** ${result.source || 'N/A'}\n`;
       if (result.properties) {
-        output += `**Dimensions:** ${result.properties.width || 'N/A'}x${result.properties.height || 'N/A'}\n`;
+        const width = result.properties.width || 'N/A';
+        const height = result.properties.height || 'N/A';
+        output += `**Dimensions:** ${width}x${height}\n`;
       }
       output += '\n';
     });

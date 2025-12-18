@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { braveSearchApi } from '../brave-api.js';
 
+const MAX_VIDEO_RESULTS = 20;
+
 export const videoSearchSchema = z.object({
   q: z.string().describe('The search query for videos'),
-  count: z.number().min(1).max(20).optional().describe('Number of results (1-20)'),
+  count: z.number().min(1).max(MAX_VIDEO_RESULTS).optional().describe('Number of results (1-20)'),
   safesearch: z.enum(['off', 'moderate', 'strict']).optional().describe('Safe search level'),
   spellcheck: z.boolean().optional().describe('Enable spell checking'),
 });
@@ -19,7 +21,7 @@ export async function videoSearch(args: z.infer<typeof videoSearchSchema>, apiKe
       output += `**URL:** ${result.url || 'N/A'}\n`;
       output += `**Description:** ${result.description || 'No description available'}\n`;
       if (result.age) output += `**Age:** ${result.age}\n`;
-      if (result.thumbnail) output += `**Thumbnail:** ${result.thumbnail.src || 'N/A'}\n`;
+      if (result.thumbnail?.src) output += `**Thumbnail:** ${result.thumbnail.src}\n`;
       output += '\n';
     });
   } else {

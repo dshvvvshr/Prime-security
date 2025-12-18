@@ -1,12 +1,14 @@
 import { z } from 'zod';
 
 // Base search parameters
+const MAX_WEB_RESULTS = 20;
+
 export const baseSearchSchema = z.object({
   q: z.string().describe('The search query'),
   country: z.string().optional().describe('Country code (e.g., US, GB)'),
   search_lang: z.string().optional().describe('Search language (e.g., en, es)'),
   ui_lang: z.string().optional().describe('UI language'),
-  count: z.number().min(1).max(20).optional().describe('Number of results (1-20)'),
+  count: z.number().min(1).max(MAX_WEB_RESULTS).optional().describe('Number of results (1-20)'),
   offset: z.number().min(0).optional().describe('Pagination offset'),
   safesearch: z.enum(['off', 'moderate', 'strict']).optional().describe('Safe search level'),
   freshness: z.string().optional().describe('Time filter (e.g., pd for past day, pw for past week)'),
@@ -101,7 +103,9 @@ export function formatSearchResults(data: any, searchType: string): string {
       output += `### ${index + 1}. ${result.title || 'Untitled'}\n`;
       output += `**Address:** ${result.address || 'N/A'}\n`;
       if (result.phone) output += `**Phone:** ${result.phone}\n`;
-      if (result.rating) output += `**Rating:** ${result.rating.toFixed(1)} (${result.rating_count || 0} reviews)\n`;
+      if (result.rating && typeof result.rating === 'number') {
+        output += `**Rating:** ${result.rating.toFixed(1)} (${result.rating_count || 0} reviews)\n`;
+      }
       output += '\n';
     });
   }
