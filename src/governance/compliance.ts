@@ -61,9 +61,9 @@ export class AuditLogger {
 
     this.events.push(event);
 
-    // Rotate if needed
-    if (this.events.length > this.maxEvents) {
-      this.events = this.events.slice(-this.maxEvents);
+    // Rotate if needed (remove oldest events in-place to avoid reallocating the array)
+    while (this.events.length > this.maxEvents) {
+      this.events.shift();
     }
 
     // In production, also write to persistent storage
@@ -95,23 +95,56 @@ export class AuditLogger {
     since?: Date;
     limit?: number;
   }): AuditEvent[] {
-    let results = [...this.events];
+    const hasLimit = typeof filter.limit === 'number' && filter.limit > 0;
 
-    if (filter.component) {
-      results = results.filter((e) => e.component === filter.component);
+    // When a limit is specified, collect matching events starting from the most recent
+    // to avoid building large intermediate arrays, then reverse to maintain
+    // chronological order in the returned results.
+    if (hasLimit) {
+      const limitedResults: AuditEvent[] = [];
+
+      for (let i = this.events.length - 1; i >= 0; i--) {
+        const e = this.events[i];
+
+        if (filter.component && e.component !== filter.component) {
+          continue;
+        }
+
+        if (filter.level && e.level !== filter.level) {
+          continue;
+        }
+
+        if (filter.since && e.timestamp < filter.since) {
+          continue;
+        }
+
+        limitedResults.push(e);
+
+        if (limitedResults.length === filter.limit) {
+          break;
+        }
+      }
+
+      return limitedResults.reverse();
     }
 
-    if (filter.level) {
-      results = results.filter((e) => e.level === filter.level);
-    }
+    // No limit: build the result array in a single forward pass with all filters applied.
+    const results: AuditEvent[] = [];
 
-    if (filter.since) {
-      const sinceDate = filter.since;
-      results = results.filter((e) => e.timestamp >= sinceDate);
-    }
+    for (const e of this.events) {
+      if (filter.component && e.component !== filter.component) {
+        continue;
+      }
 
-    if (filter.limit) {
-      results = results.slice(-filter.limit);
+      if (filter.level && e.level !== filter.level) {
+        continue;
+      }
+
+      if (filter.since && e.timestamp < filter.since) {
+        continue;
+      }
+
+      results.push(e);
     }
 
     return results;
