@@ -89,15 +89,20 @@ export class ModuleRegistry {
    */
   private resolveDependencyOrder(): string[] {
     const visited = new Set<string>();
+    const visiting = new Set<string>();
     const order: string[] = [];
 
     const visit = (name: string): void => {
       if (visited.has(name)) return;
       
+      if (visiting.has(name)) {
+        throw new Error(`Circular dependency detected involving module: ${name}`);
+      }
+      
       const entry = this.modules.get(name);
       if (!entry) return;
 
-      visited.add(name);
+      visiting.add(name);
 
       // Visit dependencies first
       if (entry.module.dependencies) {
@@ -106,6 +111,8 @@ export class ModuleRegistry {
         }
       }
 
+      visiting.delete(name);
+      visited.add(name);
       order.push(name);
     };
 
@@ -140,10 +147,22 @@ export class ModuleRegistry {
       return;
     }
 
-    // Check dependencies
+    // Check dependencies are registered
     const missing = this.checkDependencies(entry.module);
     if (missing.length > 0) {
       throw new Error(`Module ${name} has missing dependencies: ${missing.join(', ')}`);
+    }
+
+    // Check that dependencies are initialized
+    if (entry.module.dependencies) {
+      for (const depName of entry.module.dependencies) {
+        const depEntry = this.modules.get(depName);
+        if (!depEntry || depEntry.state === ModuleState.UNINITIALIZED) {
+          throw new Error(
+            `Module ${name} cannot be initialized: dependency ${depName} is not initialized`
+          );
+        }
+      }
     }
 
     entry.state = ModuleState.INITIALIZING;
@@ -220,7 +239,12 @@ export class ModuleRegistry {
       throw new Error(`Module ${name} not found`);
     }
 
-    if (entry.state !== ModuleState.RUNNING) {
+    // Only ignore stop requests for modules that are clearly inactive or already stopping
+    if (
+      entry.state === ModuleState.UNINITIALIZED ||
+      entry.state === ModuleState.STOPPED ||
+      entry.state === ModuleState.STOPPING
+    ) {
       return;
     }
 

@@ -192,7 +192,12 @@ complianceChecker.registerCheck({
     try {
       const fs = await import('fs/promises');
       const path = await import('path');
-      const directivePath = path.join(process.cwd(), 'CORE_DIRECTIVE.md');
+      
+      // Use __dirname to find package root (2 levels up from dist/governance/compliance.js)
+      // This works whether the package is used as a dependency or directly
+      const packageRoot = path.resolve(__dirname, '../..');
+      const directivePath = path.join(packageRoot, 'CORE_DIRECTIVE.md');
+      
       await fs.access(directivePath);
       
       // Verify file has content
