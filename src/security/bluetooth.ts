@@ -64,6 +64,20 @@ export interface ScanResult {
   timestamp: Date;
 }
 
+interface NoblePeripheral {
+  id: string;
+  address?: string;
+  rssi: number;
+  advertisement?: {
+    localName?: string;
+    txPowerLevel?: number;
+    manufacturerData?: Buffer;
+    serviceData?: Array<{ uuid: string; data: Buffer }>;
+    serviceUuids?: string[];
+  };
+  connectable: boolean;
+}
+
 /**
  * Bluetooth Scanner and Device Manager
  */
@@ -94,7 +108,7 @@ export class BluetoothScanner {
   /**
    * Handle discovered peripheral
    */
-  private handleDeviceDiscovery(peripheral: any): void {
+  private handleDeviceDiscovery(peripheral: NoblePeripheral): void {
     const device: BluetoothDevice = {
       id: peripheral.id,
       address: peripheral.address || peripheral.id,
