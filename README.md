@@ -164,6 +164,26 @@ const isSafe = crypto.Validator.isSafeString('user input');
 const hasXSS = crypto.Validator.hasXSS('<script>alert(1)</script>');
 ```
 
+### Running the Bluetooth Scanner Example
+
+A complete working example is provided in `src/examples/bluetooth-scanner.ts`:
+
+```bash
+# Build the project
+npm run build
+
+# Run the example (requires Bluetooth hardware)
+node dist/examples/bluetooth-scanner.js
+```
+
+The example demonstrates:
+- System initialization
+- Bluetooth availability checking
+- Device scanning
+- Device identification
+- Device cloning and export
+- Status monitoring
+
 ### System Initialization
 
 ```typescript
