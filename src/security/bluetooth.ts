@@ -136,9 +136,11 @@ export class BluetoothScanner {
 
   /**
    * Check if Bluetooth is available and ready
+   * Note: noble._state is the documented public API for checking state
    */
   async isReady(): Promise<boolean> {
     return new Promise((resolve) => {
+      // noble._state is the public API (despite the underscore)
       if (noble._state === 'poweredOn') {
         resolve(true);
       } else {
@@ -175,8 +177,14 @@ export class BluetoothScanner {
     await noble.startScanningAsync(serviceUuids, allowDuplicates);
 
     if (options.duration) {
-      setTimeout(() => {
-        this.stopScan();
+      setTimeout(async () => {
+        try {
+          await this.stopScan();
+        } catch (error) {
+          auditLogger.log(AuditLevel.WARN, 'bluetooth', 'scan-stop-error', {
+            error: (error as Error).message,
+          });
+        }
       }, options.duration);
     }
   }
@@ -330,7 +338,25 @@ export class BluetoothScanner {
    * Import a device clone from JSON
    */
   importClone(cloneJson: string): DeviceClone {
-    const clone = JSON.parse(cloneJson) as DeviceClone;
+    let clone: DeviceClone;
+    
+    try {
+      clone = JSON.parse(cloneJson) as DeviceClone;
+    } catch (error) {
+      auditLogger.log(AuditLevel.ERROR, 'bluetooth', 'clone-import-failed', {
+        error: 'Invalid JSON format',
+      });
+      throw new Error('Invalid JSON format for device clone');
+    }
+
+    // Validate required fields
+    if (!clone.deviceId || !clone.address || !clone.profile || !clone.metadata) {
+      auditLogger.log(AuditLevel.ERROR, 'bluetooth', 'clone-import-failed', {
+        error: 'Missing required fields in device clone',
+      });
+      throw new Error('Missing required fields in device clone');
+    }
+
     this.clonedDevices.set(clone.deviceId, clone);
 
     auditLogger.log(AuditLevel.INFO, 'bluetooth', 'clone-imported', {
@@ -359,6 +385,7 @@ export class BluetoothScanner {
 
   /**
    * Get scanner status
+   * Note: noble._state is the documented public API
    */
   getStatus(): {
     scanning: boolean;
@@ -368,7 +395,7 @@ export class BluetoothScanner {
   } {
     return {
       scanning: this.scanning,
-      bluetoothState: noble._state,
+      bluetoothState: noble._state, // Public API despite underscore prefix
       discoveredCount: this.discoveredDevices.size,
       clonedCount: this.clonedDevices.size,
     };
