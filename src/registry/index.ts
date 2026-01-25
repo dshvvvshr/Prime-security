@@ -89,6 +89,7 @@ export class ModuleRegistry {
    */
   private resolveDependencyOrder(): string[] {
     const visited = new Set<string>();
+    const visiting = new Set<string>();
     const order: string[] = [];
 
     const visit = (name: string): void => {
@@ -97,7 +98,12 @@ export class ModuleRegistry {
       const entry = this.modules.get(name);
       if (!entry) return;
 
-      visited.add(name);
+      // Check for circular dependency
+      if (visiting.has(name)) {
+        throw new Error(`Circular dependency detected involving module: ${name}`);
+      }
+
+      visiting.add(name);
 
       // Visit dependencies first
       if (entry.module.dependencies) {
@@ -106,6 +112,8 @@ export class ModuleRegistry {
         }
       }
 
+      visiting.delete(name);
+      visited.add(name);
       order.push(name);
     };
 
@@ -220,7 +228,12 @@ export class ModuleRegistry {
       throw new Error(`Module ${name} not found`);
     }
 
-    if (entry.state !== ModuleState.RUNNING) {
+    // Only ignore stop requests for modules that are clearly inactive or already stopping.
+    if (
+      entry.state === ModuleState.UNINITIALIZED ||
+      entry.state === ModuleState.STOPPED ||
+      entry.state === ModuleState.STOPPING
+    ) {
       return;
     }
 

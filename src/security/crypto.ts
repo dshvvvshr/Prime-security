@@ -97,7 +97,7 @@ export function deriveKey(
   password: string,
   salt: Buffer,
   keyLength: number = 32,
-  iterations: number = 100000
+  iterations: number = 600000
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     crypto.pbkdf2(password, salt, iterations, keyLength, 'sha512', (err, derivedKey) => {
@@ -132,7 +132,7 @@ export class Validator {
    * Check for potential SQL injection patterns
    */
   static hasSQLInjection(input: string): boolean {
-    const sqlPattern = /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)|(--)|(;)|(')|(\*)/i;
+    const sqlPattern = /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE)\b)|(--)|(;)/i;
     return sqlPattern.test(input);
   }
 

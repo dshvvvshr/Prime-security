@@ -80,20 +80,175 @@ export class DNAManager {
    * Validate blueprint structure
    */
   private validateBlueprint(blueprint: SystemBlueprint): void {
-    if (!blueprint.version) {
-      throw new Error('Blueprint must have a version');
+    // Top-level version
+    if (typeof blueprint.version !== 'string' || blueprint.version.trim() === '') {
+      throw new Error('Blueprint must have a non-empty string version');
     }
 
-    if (!blueprint.coreDirective) {
-      throw new Error('Blueprint must reference Core Directive');
+    // Core directive
+    const coreDirective = blueprint.coreDirective as unknown;
+    if (
+      !coreDirective ||
+      typeof coreDirective !== 'object'
+    ) {
+      throw new Error('Blueprint must reference a valid Core Directive object');
+    }
+    const cd = coreDirective as CoreDirectiveReference;
+    if (typeof cd.version !== 'string' || cd.version.trim() === '') {
+      throw new Error('Core Directive must have a non-empty string version');
+    }
+    if (typeof cd.checksum !== 'string' || cd.checksum.trim() === '') {
+      throw new Error('Core Directive must have a non-empty string checksum');
+    }
+    if (typeof cd.url !== 'string' || cd.url.trim() === '') {
+      throw new Error('Core Directive must have a non-empty string url');
+    }
+    // Best-effort URL format check (ignore environments without URL constructor)
+    try {
+      // eslint-disable-next-line no-new
+      new URL(cd.url);
+    } catch {
+      // Do not fail hard on URL parsing; only ensure it looks like a URL scheme
+      if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(cd.url)) {
+        throw new Error('Core Directive url must be a valid URL or URL-like string');
+      }
     }
 
+    // Modules
     if (!Array.isArray(blueprint.modules)) {
       throw new Error('Blueprint must have modules array');
     }
+    blueprint.modules.forEach((mod, index) => {
+      if (!mod || typeof mod !== 'object') {
+        throw new Error(`Module at index ${index} must be an object`);
+      }
+      if (typeof mod.name !== 'string' || mod.name.trim() === '') {
+        throw new Error(`Module at index ${index} must have a non-empty string name`);
+      }
+      if (typeof mod.version !== 'string' || mod.version.trim() === '') {
+        throw new Error(`Module "${mod.name}" must have a non-empty string version`);
+      }
+      if (mod.type !== 'core' && mod.type !== 'extension' && mod.type !== 'plugin') {
+        throw new Error(
+          `Module "${mod.name}" has invalid type "${(mod as ModuleDefinition).type}", expected "core" | "extension" | "plugin"`,
+        );
+      }
+      if (mod.repository !== undefined && typeof mod.repository !== 'string') {
+        throw new Error(`Module "${mod.name}" repository must be a string if provided`);
+      }
+      if (mod.configuration !== undefined) {
+        const cfg = mod.configuration;
+        if (cfg === null || typeof cfg !== 'object' || Array.isArray(cfg)) {
+          throw new Error(`Module "${mod.name}" configuration must be a non-null object if provided`);
+        }
+      }
+      if (mod.dependencies !== undefined) {
+        if (!Array.isArray(mod.dependencies)) {
+          throw new Error(`Module "${mod.name}" dependencies must be an array of strings if provided`);
+        }
+        mod.dependencies.forEach((dep, depIndex) => {
+          if (typeof dep !== 'string' || dep.trim() === '') {
+            throw new Error(
+              `Module "${mod.name}" dependency at index ${depIndex} must be a non-empty string`,
+            );
+          }
+        });
+      }
+    });
 
-    if (!blueprint.configuration) {
-      throw new Error('Blueprint must have configuration');
+    // Configuration
+    const configuration = blueprint.configuration as unknown;
+    if (!configuration || typeof configuration !== 'object') {
+      throw new Error('Blueprint must have configuration object');
+    }
+    const config = configuration as SystemConfiguration;
+    if (
+      config.environment !== 'development' &&
+      config.environment !== 'staging' &&
+      config.environment !== 'production'
+    ) {
+      throw new Error(
+        `Configuration environment must be one of "development", "staging", or "production"`,
+      );
+    }
+    if (config.features === null || typeof config.features !== 'object' || Array.isArray(config.features)) {
+      throw new Error('Configuration features must be an object mapping feature names to booleans');
+    }
+    Object.keys(config.features).forEach((key) => {
+      if (typeof config.features[key] !== 'boolean') {
+        throw new Error(`Configuration feature "${key}" must be a boolean`);
+      }
+    });
+
+    const limits = config.limits as unknown;
+    if (!limits || typeof limits !== 'object') {
+      throw new Error('Configuration limits must be an object');
+    }
+    const resLimits = limits as ResourceLimits;
+    const numericLimitFields: (keyof ResourceLimits)[] = [
+      'maxMemoryMB',
+      'maxCPUPercent',
+      'maxConnections',
+      'requestRateLimit',
+    ];
+    numericLimitFields.forEach((field) => {
+      const value = resLimits[field];
+      if (value !== undefined && (typeof value !== 'number' || Number.isNaN(value))) {
+        throw new Error(`Configuration limits field "${String(field)}" must be a valid number if provided`);
+      }
+    });
+
+    // Policies (optional)
+    if (blueprint.policies !== undefined) {
+      if (!Array.isArray(blueprint.policies)) {
+        throw new Error('Policies must be an array if provided');
+      }
+      blueprint.policies.forEach((policy, index) => {
+        if (!policy || typeof policy !== 'object') {
+          throw new Error(`Policy at index ${index} must be an object`);
+        }
+        if (typeof policy.name !== 'string' || policy.name.trim() === '') {
+          throw new Error(`Policy at index ${index} must have a non-empty string name`);
+        }
+        if (
+          policy.type !== 'security' &&
+          policy.type !== 'performance' &&
+          policy.type !== 'governance'
+        ) {
+          throw new Error(
+            `Policy "${policy.name}" has invalid type "${policy.type}", expected "security" | "performance" | "governance"`,
+          );
+        }
+        if (typeof policy.enabled !== 'boolean') {
+          throw new Error(`Policy "${policy.name}" enabled flag must be a boolean`);
+        }
+        if (!Array.isArray(policy.rules)) {
+          throw new Error(`Policy "${policy.name}" rules must be an array`);
+        }
+        policy.rules.forEach((rule, ruleIndex) => {
+          if (!rule || typeof rule !== 'object') {
+            throw new Error(`Rule at index ${ruleIndex} in policy "${policy.name}" must be an object`);
+          }
+          if (typeof rule.condition !== 'string' || rule.condition.trim() === '') {
+            throw new Error(
+              `Rule at index ${ruleIndex} in policy "${policy.name}" must have a non-empty string condition`,
+            );
+          }
+          if (typeof rule.action !== 'string' || rule.action.trim() === '') {
+            throw new Error(
+              `Rule at index ${ruleIndex} in policy "${policy.name}" must have a non-empty string action`,
+            );
+          }
+          if (rule.parameters !== undefined) {
+            const params = rule.parameters;
+            if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+              throw new Error(
+                `Rule parameters in policy "${policy.name}" must be a non-null object if provided`,
+              );
+            }
+          }
+        });
+      });
     }
   }
 
@@ -105,7 +260,7 @@ export class DNAManager {
       version: '0.1.0',
       coreDirective: {
         version: '1.0.0',
-        checksum: '',
+        checksum: 'placeholder-checksum-for-development',
         url: 'file://CORE_DIRECTIVE.md',
       },
       modules: [

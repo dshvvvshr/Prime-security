@@ -13,6 +13,7 @@ import * as crypto from './security/crypto';
 export class PrimeSecurity {
   private dnaManager: DNAManager;
   private initialized: boolean = false;
+  private started: boolean = false;
 
   constructor() {
     this.dnaManager = new DNAManager();
@@ -77,6 +78,8 @@ export class PrimeSecurity {
 
     await registry.startAll();
 
+    this.started = true;
+
     auditLogger.log(AuditLevel.INFO, 'system', 'started', {
       message: 'Prime Security is now running',
     });
@@ -92,6 +95,10 @@ export class PrimeSecurity {
 
     await registry.stopAll();
 
+    this.started = false;
+
+    await registry.stopAll();
+
     auditLogger.log(AuditLevel.INFO, 'system', 'stopped', {
       message: 'Prime Security has been stopped',
     });
@@ -102,11 +109,13 @@ export class PrimeSecurity {
    */
   getStatus(): {
     initialized: boolean;
+    started: boolean;
     modules: Array<{ name: string; version: string; state: string }>;
     auditEventCount: number;
   } {
     return {
       initialized: this.initialized,
+      started: this.started,
       modules: registry.list(),
       auditEventCount: auditLogger.count(),
     };

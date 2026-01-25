@@ -110,8 +110,10 @@ jobs:
       
       - name: Verify no secrets in code
         run: |
-          if grep -r "api[_-]key\|password\|secret" --include="*.ts" --include="*.js" src/ 2>/dev/null; then
-            echo "Warning: Potential secrets found in code"
+          # Look for actual secret patterns with high entropy strings, not just variable names
+          # This is a basic check - consider using gitleaks or truffleHog for production
+          if grep -rE '(["'\''][A-Za-z0-9+/=]{32,}["'\'']|["\''](sk|pk)_[a-zA-Z0-9]{20,}["'\''])' --include="*.ts" --include="*.js" src/ 2>/dev/null; then
+            echo "Warning: Potential high-entropy secrets found in code"
           else
             echo "✓ No obvious secrets detected"
           fi

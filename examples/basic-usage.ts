@@ -127,9 +127,21 @@ async function main() {
 
   // Step 6: Graceful shutdown
   console.log('6. Shutting Down:');
-  await registry.stop('example-module');
-  await primeSecurity.stop();
-  console.log('   ✓ System shutdown complete\n');
+  try {
+    await registry.stop('example-module');
+    console.log('   ✓ Module "example-module" stopped');
+  } catch (error) {
+    console.error('   ✗ Failed to stop module "example-module":', error);
+  }
+
+  try {
+    await primeSecurity.stop();
+    console.log('   ✓ System shutdown complete\n');
+  } catch (error) {
+    console.error('   ✗ Failed to stop Prime Security:', error);
+    // Rethrow so the top-level error handler can react appropriately.
+    throw error;
+  }
 
   console.log('=== Example Complete ===');
 }
