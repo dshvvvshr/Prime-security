@@ -6,7 +6,6 @@
  */
 
 import * as noble from '@abandonware/noble';
-import { hash } from './crypto';
 import { auditLogger, AuditLevel } from '../governance/compliance';
 
 export interface BluetoothDevice {
@@ -85,6 +84,10 @@ export class BluetoothScanner {
   private discoveredDevices: Map<string, BluetoothDevice> = new Map();
   private scanning: boolean = false;
   private clonedDevices: Map<string, DeviceClone> = new Map();
+  private stopScanPromise: Promise<void> | null = null;
+  private bluetoothState: string = 'unknown';
+  private stateChangeHandler: ((state: string) => void) | null = null;
+  private discoverHandler: ((peripheral: NoblePeripheral) => void) | null = null;
 
   constructor() {
     this.setupNobleListeners();
@@ -94,15 +97,36 @@ export class BluetoothScanner {
    * Initialize Noble event listeners
    */
   private setupNobleListeners(): void {
-    noble.on('stateChange', (state) => {
+    this.stateChangeHandler = (state: string) => {
+      this.bluetoothState = state;
       auditLogger.log(AuditLevel.INFO, 'bluetooth', 'state-change', {
         state,
       });
-    });
-
-    noble.on('discover', (peripheral) => {
+    };
+    
+    this.discoverHandler = (peripheral: NoblePeripheral) => {
       this.handleDeviceDiscovery(peripheral);
-    });
+    };
+
+    // Initialize state from noble
+    this.bluetoothState = noble._state;
+    
+    noble.on('stateChange', this.stateChangeHandler);
+    noble.on('discover', this.discoverHandler);
+  }
+
+  /**
+   * Remove Noble event listeners
+   */
+  private removeNobleListeners(): void {
+    if (this.stateChangeHandler) {
+      noble.removeListener('stateChange', this.stateChangeHandler);
+      this.stateChangeHandler = null;
+    }
+    if (this.discoverHandler) {
+      noble.removeListener('discover', this.discoverHandler);
+      this.discoverHandler = null;
+    }
   }
 
   /**
@@ -136,12 +160,10 @@ export class BluetoothScanner {
 
   /**
    * Check if Bluetooth is available and ready
-   * Note: noble._state is the documented public API for checking state
    */
   async isReady(): Promise<boolean> {
     return new Promise((resolve) => {
-      // noble._state is the public API (despite the underscore)
-      if (noble._state === 'poweredOn') {
+      if (this.bluetoothState === 'poweredOn') {
         resolve(true);
       } else {
         noble.once('stateChange', (state) => {
@@ -175,34 +197,36 @@ export class BluetoothScanner {
     const allowDuplicates = options.allowDuplicates || false;
 
     await noble.startScanningAsync(serviceUuids, allowDuplicates);
-
-    if (options.duration) {
-      setTimeout(async () => {
-        try {
-          await this.stopScan();
-        } catch (error) {
-          auditLogger.log(AuditLevel.WARN, 'bluetooth', 'scan-stop-error', {
-            error: (error as Error).message,
-          });
-        }
-      }, options.duration);
-    }
   }
 
   /**
    * Stop scanning for Bluetooth devices
    */
   async stopScan(): Promise<void> {
+    // If a stop operation is already in progress, wait for it
+    if (this.stopScanPromise) {
+      await this.stopScanPromise;
+      return;
+    }
+
     if (!this.scanning) {
       return;
     }
 
-    await noble.stopScanningAsync();
-    this.scanning = false;
+    this.stopScanPromise = (async () => {
+      try {
+        await noble.stopScanningAsync();
+        this.scanning = false;
 
-    auditLogger.log(AuditLevel.INFO, 'bluetooth', 'scan-stop', {
-      devicesFound: this.discoveredDevices.size,
-    });
+        auditLogger.log(AuditLevel.INFO, 'bluetooth', 'scan-stop', {
+          devicesFound: this.discoveredDevices.size,
+        });
+      } finally {
+        this.stopScanPromise = null;
+      }
+    })();
+
+    await this.stopScanPromise;
   }
 
   /**
@@ -212,18 +236,25 @@ export class BluetoothScanner {
     const startTime = Date.now();
     const duration = options.duration || 5000; // Default 5 seconds
 
-    await this.startScan({ ...options, duration });
+    // Start scan without auto-stop duration (we handle it here)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { duration: _duration, ...scanOptions } = options;
+    await this.startScan(scanOptions);
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       setTimeout(async () => {
-        await this.stopScan();
-        const scanDuration = Date.now() - startTime;
-        
-        resolve({
-          devices: Array.from(this.discoveredDevices.values()),
-          scanDuration,
-          timestamp: new Date(),
-        });
+        try {
+          await this.stopScan();
+          const scanDuration = Date.now() - startTime;
+
+          resolve({
+            devices: Array.from(this.discoveredDevices.values()),
+            scanDuration,
+            timestamp: new Date(),
+          });
+        } catch (error) {
+          reject(error);
+        }
       }, duration);
     });
   }
@@ -302,7 +333,6 @@ export class BluetoothScanner {
     auditLogger.log(AuditLevel.INFO, 'bluetooth', 'device-cloned', {
       deviceId: device.id,
       name: device.name,
-      cloneId: hash(device.id + Date.now().toString()).substring(0, 16),
     });
 
     return clone;
@@ -338,10 +368,10 @@ export class BluetoothScanner {
    * Import a device clone from JSON
    */
   importClone(cloneJson: string): DeviceClone {
-    let clone: DeviceClone;
+    let clone: unknown;
     
     try {
-      clone = JSON.parse(cloneJson) as DeviceClone;
+      clone = JSON.parse(cloneJson);
     } catch (error) {
       auditLogger.log(AuditLevel.ERROR, 'bluetooth', 'clone-import-failed', {
         error: 'Invalid JSON format',
@@ -349,22 +379,32 @@ export class BluetoothScanner {
       throw new Error('Invalid JSON format for device clone');
     }
 
+    // Type guard to check if clone has required properties
+    const parsedClone = clone as Record<string, unknown>;
+    
     // Validate required fields
-    if (!clone.deviceId || !clone.address || !clone.profile || !clone.metadata) {
+    if (!parsedClone.deviceId || !parsedClone.address || !parsedClone.profile || !parsedClone.metadata) {
       auditLogger.log(AuditLevel.ERROR, 'bluetooth', 'clone-import-failed', {
         error: 'Missing required fields in device clone',
       });
       throw new Error('Missing required fields in device clone');
     }
 
-    this.clonedDevices.set(clone.deviceId, clone);
+    // Normalize Date field - JSON.parse returns string for Date
+    const metadata = parsedClone.metadata as Record<string, unknown>;
+    if (metadata.clonedAt) {
+      metadata.clonedAt = new Date(metadata.clonedAt as string);
+    }
+
+    const normalizedClone = parsedClone as unknown as DeviceClone;
+    this.clonedDevices.set(normalizedClone.deviceId, normalizedClone);
 
     auditLogger.log(AuditLevel.INFO, 'bluetooth', 'clone-imported', {
-      deviceId: clone.deviceId,
-      name: clone.name,
+      deviceId: normalizedClone.deviceId,
+      name: normalizedClone.name,
     });
 
-    return clone;
+    return normalizedClone;
   }
 
   /**
@@ -385,7 +425,6 @@ export class BluetoothScanner {
 
   /**
    * Get scanner status
-   * Note: noble._state is the documented public API
    */
   getStatus(): {
     scanning: boolean;
@@ -395,7 +434,7 @@ export class BluetoothScanner {
   } {
     return {
       scanning: this.scanning,
-      bluetoothState: noble._state, // Public API despite underscore prefix
+      bluetoothState: this.bluetoothState,
       discoveredCount: this.discoveredDevices.size,
       clonedCount: this.clonedDevices.size,
     };
@@ -413,6 +452,9 @@ export const bluetoothScanner = {
     return _bluetoothScanner;
   },
   reset(): void {
+    if (_bluetoothScanner) {
+      _bluetoothScanner['removeNobleListeners']();
+    }
     _bluetoothScanner = null;
   }
 };

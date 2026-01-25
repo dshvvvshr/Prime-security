@@ -262,11 +262,10 @@ npm run format
 The Bluetooth cloning feature allows you to:
 
 1. **Scan** for nearby Bluetooth and BLE devices
-2. **Identify** devices by their address, name, services, and characteristics
+2. **Identify** devices by their address, name, and advertisement data
 3. **Clone** device profiles including:
    - Device address and name
    - Advertisement data (manufacturer data, service UUIDs, tx power)
-   - Service and characteristic information
    - Metadata (RSSI, connectable status, timestamp)
 
 4. **Export/Import** clones as JSON for:
@@ -289,10 +288,11 @@ The Bluetooth cloning feature allows you to:
 - In controlled environments for security research
 - In compliance with applicable laws and regulations
 
-The cloning feature creates a profile/snapshot of the device's advertisement and service data. It does not:
+The cloning feature creates a profile/snapshot of the device's advertisement data. It does not:
 - Capture encrypted communication
 - Break pairing or authentication
 - Clone device firmware or software
+- Connect to devices or read service characteristics
 
 ## License
 
@@ -306,7 +306,7 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for de
 
 For issues and questions:
 - Open an issue on GitHub
-- Review the documentation in the `/docs` directory
+- Review the documentation in this repository
 
 ## Acknowledgments
 
