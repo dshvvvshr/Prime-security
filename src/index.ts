@@ -9,6 +9,7 @@ import { registry, Module } from './registry';
 import { DNAManager } from './autonomic/dna';
 import { auditLogger, complianceChecker, AuditLevel } from './governance/compliance';
 import * as crypto from './security/crypto';
+import * as bluetooth from './security/bluetooth';
 
 export class PrimeSecurity {
   private dnaManager: DNAManager;
@@ -131,6 +132,24 @@ export class PrimeSecurity {
       },
     };
 
+    const bluetoothModule: Module = {
+      name: 'bluetooth-security',
+      version: '0.1.0',
+      dependencies: ['core-security'],
+      init: async () => {
+        auditLogger.log(AuditLevel.INFO, 'bluetooth-security', 'init', {
+          message: 'Bluetooth security module initialized',
+        });
+      },
+      start: async () => {
+        const status = bluetooth.bluetoothScanner.instance.getStatus();
+        auditLogger.log(AuditLevel.INFO, 'bluetooth-security', 'start', {
+          message: 'Bluetooth security services started',
+          bluetoothState: status.bluetoothState,
+        });
+      },
+    };
+
     const governanceModule: Module = {
       name: 'governance',
       version: '0.1.0',
@@ -148,6 +167,7 @@ export class PrimeSecurity {
     };
 
     registry.register(securityModule);
+    registry.register(bluetoothModule);
     registry.register(governanceModule);
   }
 }
@@ -157,6 +177,7 @@ export { registry, Module, ModuleState } from './registry';
 export { DNAManager, SystemBlueprint } from './autonomic/dna';
 export { auditLogger, complianceChecker, AuditLevel } from './governance/compliance';
 export { crypto };
+export { bluetooth };
 
 // Create and export default instance
 export const primeSecurity = new PrimeSecurity();

@@ -1,20 +1,35 @@
-# Brave Search MCP Server
+# Prime Security
 
-A Model Context Protocol (MCP) server implementation for Brave Search API. This server enables AI applications and agents to perform privacy-focused web searches through the standardized MCP interface.
+A self-organizing, multi-agent security framework with Bluetooth device scanning and cloning capabilities. This framework provides the foundation for security testing and analysis with a focus on autonomic governance and compliance.
 
 ## Features
 
-- **Web Search**: General web search with rich filtering and pagination
-- **Local Search**: Find local businesses and services
-- **Image Search**: Search for images with metadata
-- **Video Search**: Search for video content
-- **News Search**: Search for recent news articles
-- **Summarizer**: Get AI-generated summaries for search queries
+- **Bluetooth Security**:
+  - Scan for Bluetooth and BLE devices
+  - Identify device information (name, address, services, RSSI)
+  - Clone device profiles for security testing and emulation
+  - Export/import device clones for analysis
+  
+- **Core Security Primitives**:
+  - Cryptographic operations (hashing, encryption, HMAC)
+  - Input validation and sanitization
+  - Secure random generation
+
+- **Governance & Compliance**:
+  - Audit logging for all security operations
+  - Compliance checking framework
+  - Module dependency management
+
+- **Autonomic System**:
+  - Self-organizing module registry
+  - Digital DNA blueprint system
+  - Dynamic module initialization
 
 ## Prerequisites
 
 - Node.js 18 or higher
-- A Brave Search API key (get one at https://brave.com/search/api/)
+- Bluetooth hardware (for Bluetooth scanning features)
+- Linux-based system recommended for Bluetooth support
 
 ## Installation
 
@@ -29,125 +44,167 @@ cd Prime-security
 npm install
 ```
 
-3. Create a `.env` file based on `.env.example`:
-```bash
-cp .env.example .env
-```
-
-4. Add your Brave Search API key to `.env`:
-```
-BRAVE_API_KEY=your_api_key_here
-```
-
-5. Build the project:
+3. Build the project:
 ```bash
 npm run build
 ```
 
 ## Usage
 
-### Running the Server
+### Bluetooth Scanning and Cloning
 
-Start the MCP server in STDIO mode (default):
-```bash
-npm start
-```
+#### Basic Scanning
 
-Or use the development mode with auto-reload:
-```bash
-npm run dev
-```
+```typescript
+import { bluetooth } from 'prime-security';
 
-### Available Tools
+// Access the bluetooth scanner instance
+const scanner = bluetooth.bluetoothScanner.instance;
 
-#### 1. brave_web_search
-Search the web using Brave Search.
+// Check if Bluetooth is ready
+const isReady = await scanner.isReady();
 
-**Parameters:**
-- `q` (required): Search query
-- `country` (optional): Country code (e.g., "US", "GB")
-- `search_lang` (optional): Search language (e.g., "en", "es")
-- `count` (optional): Number of results (1-20)
-- `offset` (optional): Pagination offset
-- `safesearch` (optional): Safe search level ("off", "moderate", "strict")
-- `freshness` (optional): Time filter ("pd" = past day, "pw" = past week, "pm" = past month, "py" = past year)
-
-#### 2. brave_local_search
-Search for local businesses and places.
-
-**Parameters:**
-- `q` (required): Search query
-- `count` (optional): Number of results (1-20)
-
-#### 3. brave_image_search
-Search for images.
-
-**Parameters:**
-- `q` (required): Search query
-- `count` (optional): Number of results (1-150)
-- `safesearch` (optional): Safe search level
-
-#### 4. brave_video_search
-Search for videos.
-
-**Parameters:**
-- `q` (required): Search query
-- `count` (optional): Number of results (1-20)
-- `safesearch` (optional): Safe search level
-
-#### 5. brave_news_search
-Search for news articles.
-
-**Parameters:**
-- `q` (required): Search query
-- `count` (optional): Number of results (1-20)
-- `freshness` (optional): Time filter
-
-#### 6. brave_summarizer
-Get AI-generated summaries.
-
-**Parameters:**
-- `key` (required): Summarizer key or search query
-- `entity_info` (optional): Include entity information
-
-## Integration with MCP Clients
-
-### Claude Desktop
-
-Add to your Claude Desktop configuration file:
-
-**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "brave-search": {
-      "command": "node",
-      "args": ["/path/to/Prime-security/dist/index.js"],
-      "env": {
-        "BRAVE_API_KEY": "your_api_key_here"
-      }
-    }
-  }
+if (isReady) {
+  // Scan for devices (5 seconds by default)
+  const result = await scanner.scan({ duration: 5000 });
+  
+  console.log(`Found ${result.devices.length} devices:`);
+  result.devices.forEach(device => {
+    console.log(`  - ${device.name || 'Unknown'} (${device.address})`);
+    console.log(`    RSSI: ${device.rssi} dBm`);
+    console.log(`    Services: ${device.advertisement.serviceUuids?.join(', ') || 'None'}`);
+  });
 }
 ```
 
-### Other MCP Clients
+#### Device Identification
 
-This server uses STDIO transport and can be integrated with any MCP-compatible client. Refer to your client's documentation for specific integration instructions.
+```typescript
+// Get detailed information about a specific device
+const device = await scanner.identifyDevice('device-id-here');
 
-## API Rate Limits
+if (device) {
+  console.log('Device Details:');
+  console.log(`  ID: ${device.id}`);
+  console.log(`  Address: ${device.address}`);
+  console.log(`  Name: ${device.name}`);
+  console.log(`  RSSI: ${device.rssi} dBm`);
+  console.log(`  Connectable: ${device.connectable}`);
+  console.log(`  Services: ${device.advertisement.serviceUuids?.join(', ')}`);
+}
+```
 
-Brave Search API has the following rate limits:
+#### Device Cloning
 
-- **Free Tier**: 1 request/second, 2,000 queries/month
-- **Base Tier**: Higher limits available
-- **Pro/Enterprise**: Custom limits
+```typescript
+// Clone a device for security testing
+const clone = await scanner.cloneDevice('device-id-here');
 
-## Privacy
+if (clone) {
+  console.log('Device Clone Created:');
+  console.log(`  Device ID: ${clone.deviceId}`);
+  console.log(`  Name: ${clone.name}`);
+  console.log(`  Address: ${clone.address}`);
+  
+  // Export clone to JSON for later use
+  const cloneJson = scanner.exportClone('device-id-here');
+  if (cloneJson) {
+    // Save to file or database
+    require('fs').writeFileSync('device-clone.json', cloneJson);
+  }
+}
 
-This implementation uses Brave Search, which is privacy-focused and does not track users or build search profiles.
+// Import a previously saved clone
+const savedClone = require('fs').readFileSync('device-clone.json', 'utf8');
+const importedClone = scanner.importClone(savedClone);
+```
+
+#### Scanner Status and Management
+
+```typescript
+// Get scanner status
+const status = scanner.getStatus();
+console.log('Scanner Status:', status);
+// Output:
+// {
+//   scanning: false,
+//   bluetoothState: 'poweredOn',
+//   discoveredCount: 5,
+//   clonedCount: 2
+// }
+
+// Get all discovered devices
+const discovered = scanner.getDiscoveredDevices();
+
+// Get all cloned devices
+const cloned = scanner.getClonedDevices();
+
+// Clear caches
+scanner.clearDiscovered();
+scanner.clearClones();
+```
+
+### Core Security Operations
+
+```typescript
+import { crypto } from 'prime-security';
+
+// Hash data
+const hashed = crypto.hash('sensitive data');
+
+// Encrypt data
+const key = Buffer.from('...32-byte-key...');
+const { encrypted, iv, authTag } = crypto.encrypt('secret message', key);
+
+// Decrypt data
+const decrypted = crypto.decrypt(encrypted, key, iv, authTag);
+
+// Validate input
+const isSafe = crypto.Validator.isSafeString('user input');
+const hasXSS = crypto.Validator.hasXSS('<script>alert(1)</script>');
+```
+
+### Running the Bluetooth Scanner Example
+
+A complete working example is provided in `src/examples/bluetooth-scanner.ts`:
+
+```bash
+# Build the project
+npm run build
+
+# Run the example (requires Bluetooth hardware)
+node dist/examples/bluetooth-scanner.js
+```
+
+The example demonstrates:
+- System initialization
+- Bluetooth availability checking
+- Device scanning
+- Device identification
+- Device cloning and export
+- Status monitoring
+
+### System Initialization
+
+```typescript
+import { PrimeSecurity } from 'prime-security';
+
+const system = new PrimeSecurity();
+
+// Initialize with default blueprint
+await system.initialize();
+
+// Start the system
+await system.start();
+
+// Get status
+const status = system.getStatus();
+console.log(`Modules: ${status.modules.length}`);
+console.log(`Audit Events: ${status.auditEventCount}`);
+
+// Stop gracefully
+await system.stop();
+```
 
 ## Development
 
@@ -156,16 +213,19 @@ This implementation uses Brave Search, which is privacy-focused and does not tra
 ```
 Prime-security/
 ├── src/
-│   ├── index.ts           # Main server entry point
-│   ├── config.ts          # Configuration management
-│   ├── brave-api.ts       # Brave API client
-│   └── tools/             # Tool implementations
-│       ├── web-search.ts
-│       ├── local-search.ts
-│       ├── image-search.ts
-│       ├── video-search.ts
-│       ├── news-search.ts
-│       └── summarizer.ts
+│   ├── index.ts                # Main system entry point
+│   ├── autonomic/
+│   │   └── dna.ts             # System blueprint management
+│   ├── governance/
+│   │   └── compliance.ts      # Audit logging and compliance
+│   ├── registry/
+│   │   └── index.ts           # Module registry
+│   └── security/
+│       ├── crypto.ts          # Cryptographic primitives
+│       └── bluetooth.ts       # Bluetooth scanning & cloning
+├── tests/
+│   ├── registry/
+│   └── security/
 ├── package.json
 ├── tsconfig.json
 └── README.md
@@ -177,11 +237,62 @@ Prime-security/
 npm run build
 ```
 
-### Running in Development
+### Running Tests
 
 ```bash
-npm run dev
+npm test
+
+# Run specific test suite
+npm test -- tests/security/bluetooth.test.ts
+
+# Run with coverage
+npm run test:coverage
 ```
+
+### Linting and Formatting
+
+```bash
+npm run lint
+npm run lint:fix
+npm run format
+```
+
+## Bluetooth Device Cloning
+
+The Bluetooth cloning feature allows you to:
+
+1. **Scan** for nearby Bluetooth and BLE devices
+2. **Identify** devices by their address, name, and advertisement data
+3. **Clone** device profiles including:
+   - Device address and name
+   - Advertisement data (manufacturer data, service UUIDs, tx power)
+   - Metadata (RSSI, connectable status, timestamp)
+
+4. **Export/Import** clones as JSON for:
+   - Security testing and penetration testing
+   - Device emulation
+   - Analysis and documentation
+   - Creating test fixtures
+
+### Use Cases
+
+- **Security Testing**: Clone devices to test authentication and pairing mechanisms
+- **Device Analysis**: Capture and analyze device profiles for security research
+- **Emulation**: Use cloned profiles to emulate devices in controlled environments
+- **Documentation**: Export device profiles for security documentation
+
+### Security Considerations
+
+⚠️ **Important**: Bluetooth device cloning should only be performed:
+- On devices you own or have explicit permission to test
+- In controlled environments for security research
+- In compliance with applicable laws and regulations
+
+The cloning feature creates a profile/snapshot of the device's advertisement data. It does not:
+- Capture encrypted communication
+- Break pairing or authentication
+- Clone device firmware or software
+- Connect to devices or read service characteristics
 
 ## License
 
@@ -189,15 +300,16 @@ MIT
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
 
 ## Support
 
 For issues and questions:
 - Open an issue on GitHub
-- Check the Brave Search API documentation: https://brave.com/search/api/
+- Review the documentation in this repository
 
 ## Acknowledgments
 
-- Built on the [Model Context Protocol](https://modelcontextprotocol.io)
-- Powered by [Brave Search API](https://brave.com/search/api/)
+- Built on Node.js and TypeScript
+- Uses [@abandonware/noble](https://github.com/abandonware/noble) for Bluetooth Low Energy support
+- Implements autonomic computing principles for self-organization
