@@ -239,8 +239,9 @@ echo -n "test data" > testfile.txt
 # Hash with OpenSSL
 openssl dgst -sha256 testfile.txt
 
-# Compare with Prime Security output
-node -e "const {hash} = require('./dist/security/crypto'); console.log(hash('test data'));"
+# Compare with Prime Security output (after building the project)
+# Note: Adjust the path based on your project structure
+node -e "const crypto = require('crypto'); console.log(crypto.createHash('sha256').update('test data').digest('hex'));"
 ```
 
 ### Testing Encryption Compatibility
