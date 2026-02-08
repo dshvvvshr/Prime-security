@@ -41,7 +41,49 @@ a node in a multi-agent network that shares a common kernel prompt
 
 ---
 
-## 2. Self-Building & Self-Reconfiguring Systems
+## 2. Cryptographic Foundations & Security Libraries
+
+Strong cryptography is the bedrock of any security system. Understanding the
+low-level implementations helps ensure correct usage and enables advanced
+security work.
+
+Key libraries and resources:
+
+- **OpenSSL**  
+  The de facto standard cryptographic library for SSL/TLS and general
+  cryptographic operations. Node.js's `crypto` module is backed by OpenSSL.
+  
+  To study or work with OpenSSL source code:
+  ```bash
+  git clone git://git.openssl.org/openssl.git
+  ```
+  
+  See [OpenSSL Development Guide](./docs/OPENSSL_DEVELOPMENT.md) for detailed
+  instructions on building, testing, and integrating OpenSSL.
+
+- **libsodium**  
+  Modern, easy-to-use cryptographic library with high-level APIs. Good for
+  developers who want strong defaults without deep cryptographic expertise.
+
+- **BoringSSL / LibreSSL**  
+  Forks of OpenSSL with different goals:
+  - BoringSSL: Google's fork focused on Chrome/Android needs
+  - LibreSSL: OpenBSD's fork focused on code quality and security
+
+- **Cryptographic Standards**  
+  - NIST FIPS 140-2/140-3 for validated cryptographic modules
+  - PKCS standards for public key cryptography
+  - RFC documents for cryptographic protocols (TLS, SSH, etc.)
+
+**Design idea for this project:**  
+Use Node.js's `crypto` module (backed by OpenSSL) for all cryptographic
+operations while maintaining awareness of the underlying implementations.
+Document all cryptographic choices and align with industry standards and
+the Core Directive's security-first approach.
+
+---
+
+## 3. Self-Building & Self-Reconfiguring Systems
 
 We are interested in systems that can assemble, repair, and improve
 themselves while staying aligned.
@@ -79,7 +121,7 @@ system from that blueprint.
 
 ---
 
-## 3. Accessing & Simulating Restricted Content
+## 4. Accessing & Simulating Restricted Content
 
 Some development paths involve learning from or testing against systems
 that are partially blocked, geofenced, or censored.
@@ -113,7 +155,7 @@ Directive.
 
 ---
 
-## 4. Theoretical Foundations (Recursion, Autonomy, Resilience)
+## 5. Theoretical Foundations (Recursion, Autonomy, Resilience)
 
 The project sits on top of several deep ideas:
 
@@ -152,7 +194,7 @@ boundary.
 
 ---
 
-## 5. Modular / Evolutionary Platforms and Projects
+## 6. Modular / Evolutionary Platforms and Projects
 
 We want a "hyper-modular" ecosystem where components can be swapped,
 extended, or recombined.
@@ -190,7 +232,7 @@ decentralized substrates (P2P, blockchain, edge nodes).
 
 ---
 
-## 6. Emerging & Speculative Research
+## 7. Emerging & Speculative Research
 
 Frontier work that strongly resonates with the project:
 
@@ -229,7 +271,7 @@ static bureaucracy.
 
 ---
 
-## 7. How This Feeds Back Into the Repo
+## 8. How This Feeds Back Into the Repo
 
 Next steps that connect this research to concrete work:
 
