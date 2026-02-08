@@ -193,6 +193,7 @@ npm run format          # Format with Prettier
 - **[Core Directive](./CORE_DIRECTIVE.md)** - Foundational principles (required reading)
 - **[Architecture](./notes/ARCHITECTURE_DRAFT.md)** - System design and components
 - **[Research Foundations](./UNDER_PRESSURE_LOOMING.md)** - Theoretical background and tools
+- **[OpenSSL Development Guide](./docs/OPENSSL_DEVELOPMENT.md)** - Working with OpenSSL source code
 - **[Contributing Guide](./CONTRIBUTING.md)** - How to contribute
 - **[License](./LICENSE)** - MIT License
 
