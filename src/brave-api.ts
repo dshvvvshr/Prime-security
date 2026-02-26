@@ -12,7 +12,6 @@ export const baseSearchSchema = z.object({
   offset: z.number().min(0).optional().describe('Pagination offset'),
   safesearch: z.enum(['off', 'moderate', 'strict']).optional().describe('Safe search level'),
   freshness: z.string().optional().describe('Time filter (e.g., pd for past day, pw for past week)'),
-  text_decorations: z.boolean().optional().describe('Include text decorations in results'),
   spellcheck: z.boolean().optional().describe('Enable spell checking'),
 });
 
